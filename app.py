@@ -1,4 +1,41 @@
-# Product Wheel Simulator - Main Application
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def init_session_state():
+    """Initialize session state variables."""
+    if 'simulation_results' not in st.session_state:
+        st.session_state.simulation_results = None
+    if 'config_data' not in st.session_state:
+        st.session_state.config_data = None
+    if 'products_data' not in st.session_state:
+        st.session_state.products_data = None
+    if 'changeover_data' not in st.session_state:
+        st.session_state.changeover_data = None
+    if 'demand_data' not in st.session_state:
+        st.session_state.demand_data = None
+=======
+# ============================================================================
+# UTILITY FUNCTIONS
+# ============================================================================
+
+def init_session_state():
+    """Initialize session state variables."""
+    if 'simulation_results' not in st.session_state:
+        st.session_state.simulation_results = None
+    if 'config_data' not in st.session_state:
+        st.session_state.config_data = None
+    if 'products_data' not in st.session_state:
+        st.session_state.products_data = None
+    if 'changeover_data' not in st.session_state:
+        st.session_state.changeover_data = None
+    if 'demand_data' not in st.session_state:
+        st.session_state.demand_data = None
+    if 'num_products' not in st.session_state:
+        st.session_state.num_products = 3  # Default number of products
+    if 'num_months' not in st.session_state:
+        st.session_state.num_months = 6  # Default number of months
+    if 'load_sample_confirmed' not in st.session_state:
+        st.session_state.load_sample_confirmed = FalseProduct Wheel Simulator - Main Application
 """
 Streamlit application for Product Wheel simulation.
 This app optimizes production planning using the Product Wheel methodology.
@@ -122,29 +159,95 @@ def load_sample_data():
     st.success("Sample data loaded successfully!")
 
 
-def edit_dataframe(df: pd.DataFrame) -> pd.DataFrame:
-    """
-    Simple dataframe editor using st.data_editor.
-    
-    Args:
-        df: DataFrame to edit.
-        
-    Returns:
-        Edited DataFrame.
-    """
-    st.markdown("### Edit DataFrame")
-    edited_df = st.data_editor(df, use_container_width=True)
-    return edited_df
-
-
-# ============================================================================
 # PAGE FUNCTIONS
 # ============================================================================
+=======
+# ============================================================================
+# PAGE FUNCTIONS
+# ========================================================================================================================================================
+# PAGE FUNCTIONS
+# ============================================================================
+
+def create_empty_product_dataframe(num_products: int) -> pd.DataFrame:
+    """Create an empty DataFrame for product data with the specified number of rows."""
+    return pd.DataFrame({
+        'Product': [f'Product_{i+1}' for i in range(num_products)],
+        'Annual Demand (unit)': [0.0] * num_products,
+        'Preferred LT (days)': [5] * num_products,
+        'Standard Dev Demand': [0.0] * num_products,
+        'RM Profit €/kg': [0.0] * num_products,
+        'Throughput €': [0.0] * num_products,
+        'Sequence': list(range(1, num_products + 1)),
+        'k': [2] * num_products,
+        'Phase+': [0] * num_products,
+        'C/O Time': [1.0] * num_products,
+        'Line': ['Line 1'] * num_products,
+        'Processing_Time_per_Unit': [0.1] * num_products,
+        'Strategy': ['MTS'] * num_products,
+        'Qcode': [f'Q{i+1:03d}' for i in range(num_products)]
+    })
+
+
+def create_empty_demand_dataframe(num_products: int, num_months: int) -> pd.DataFrame:
+    """Create an empty DataFrame for demand history with the specified dimensions."""
+    months = [f'Month_{i+1}' for i in range(num_months)]
+    data = []
+    for product_idx in range(num_products):
+        for month_idx in range(num_months):
+            data.append({
+                'Product': f'Product_{product_idx+1}',
+                'Month': months[month_idx],
+                'Monthly Demand (units)': 0
+            })
+    return pd.DataFrame(data)
+
+
+def create_empty_changeover_matrix(num_products: int) -> pd.DataFrame:
+    """Create an empty changeover matrix for the specified number of products."""
+    product_names = [f'Product_{i+1}' for i in range(num_products)]
+    data = {name: [0.0] * num_products for name in product_names}
+    df = pd.DataFrame(data, index=product_names)
+    # Set diagonal to 0
+    for i in range(num_products):
+        df.iloc[i, i] = 0.0
+    return df
+
 
 def show_data_input_page():
     """Display the data input page."""
     st.header("1. Data Input")
     st.markdown("Upload or edit your production data.")
+    
+    # Number of products and months selection
+    with st.expander("🔢 Data Dimensions", expanded=True):
+        st.markdown("### Set the size of your data tables")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            st.session_state.num_products = st.number_input(
+                "Number of Products",
+                min_value=1,
+                max_value=20,
+                value=st.session_state.num_products,
+                help="Set the number of products to create input tables"
+            )
+        with col2:
+            st.session_state.num_months = st.number_input(
+                "Number of Months for Demand History",
+                min_value=1,
+                max_value=24,
+                value=st.session_state.num_months,
+                help="Set the number of months for demand history table"
+            )
+        
+        if st.button("Initialize Empty Tables", key="init_tables"):
+            # Initialize empty dataframes
+            st.session_state.products_data = create_empty_product_dataframe(st.session_state.num_products)
+            st.session_state.demand_data = create_empty_demand_dataframe(
+                st.session_state.num_products, st.session_state.num_months
+            )
+            st.session_state.changeover_data = create_empty_changeover_matrix(st.session_state.num_products)
+            st.success(f"Initialized tables for {st.session_state.num_products} products and {st.session_state.num_months} months!")
     
     # Configuration section
     with st.expander("📋 Global Configuration", expanded=True):
@@ -199,6 +302,19 @@ def show_data_input_page():
             })
             st.session_state.config_data = config_df
             st.success("Configuration saved!")
+        
+        # Also allow manual editing of config as a table
+        if st.session_state.config_data is not None:
+            st.markdown("**Or edit configuration as a table**")
+            config_for_edit = st.session_state.config_data.copy()
+            edited_config = st.data_editor(
+                config_for_edit,
+                use_container_width=True,
+                key="config_editor"
+            )
+            if not edited_config.equals(st.session_state.config_data):
+                st.session_state.config_data = edited_config
+                st.success("Configuration updated!")
     
     # Products section
     with st.expander("📦 Product Data", expanded=True):
@@ -233,14 +349,21 @@ def show_data_input_page():
             else:
                 st.markdown("Enter product data manually")
         
-        # Display current products data
+        # Display current products data with interactive editor
         if st.session_state.products_data is not None:
-            st.dataframe(st.session_state.products_data, use_container_width=True)
-            
-            if st.button("Edit Products Manually"):
-                st.session_state.products_data = edit_dataframe(st.session_state.products_data)
+            st.markdown("**Edit Product Data**")
+            edited_products = st.data_editor(
+                st.session_state.products_data,
+                use_container_width=True,
+                num_rows="dynamic",
+                key="products_editor"
+            )
+            # Update session state if data was edited
+            if not edited_products.equals(st.session_state.products_data):
+                st.session_state.products_data = edited_products
+                st.success("Product data updated!")
         else:
-            st.info("No product data loaded. Please upload a file or use sample data.")
+            st.info("No product data loaded. Please upload a file, use sample data, or initialize empty tables.")
     
     # Changeover matrix section
     with st.expander("🔄 Changeover Matrix", expanded=True):
@@ -268,11 +391,20 @@ def show_data_input_page():
             else:
                 st.markdown("Enter changeover matrix manually")
         
-        # Display current changeover matrix
+        # Display current changeover matrix with interactive editor
         if st.session_state.changeover_data is not None:
-            st.dataframe(st.session_state.changeover_data, use_container_width=True)
+            st.markdown("**Edit Changeover Matrix**")
+            edited_changeover = st.data_editor(
+                st.session_state.changeover_data,
+                use_container_width=True,
+                key="changeover_editor"
+            )
+            # Update session state if data was edited
+            if not edited_changeover.equals(st.session_state.changeover_data):
+                st.session_state.changeover_data = edited_changeover
+                st.success("Changeover matrix updated!")
         else:
-            st.info("No changeover matrix loaded. Please upload a file or use sample data.")
+            st.info("No changeover matrix loaded. Please upload a file, use sample data, or initialize empty tables.")
     
     # Demand history section
     with st.expander("📈 Demand History", expanded=False):
@@ -291,8 +423,21 @@ def show_data_input_page():
             except Exception as e:
                 st.error(f"Error uploading file: {e}")
         
+        # Display current demand data with interactive editor
         if st.session_state.demand_data is not None:
-            st.dataframe(st.session_state.demand_data, use_container_width=True)
+            st.markdown("**Edit Demand History**")
+            edited_demand = st.data_editor(
+                st.session_state.demand_data,
+                use_container_width=True,
+                num_rows="dynamic",
+                key="demand_editor"
+            )
+            # Update session state if data was edited
+            if not edited_demand.equals(st.session_state.demand_data):
+                st.session_state.demand_data = edited_demand
+                st.success("Demand history updated!")
+        else:
+            st.info("No demand history loaded. Please upload a file, use sample data, or initialize empty tables.")
 
 
 def show_simulation_page():
