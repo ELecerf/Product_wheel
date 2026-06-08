@@ -96,8 +96,19 @@ def load_sample_data():
         st.session_state.products_data is not None,
         st.session_state.changeover_data is not None
     ]):
-        if not st.confirm("This will overwrite existing data. Continue?"):
+        # Use a session state variable to track confirmation
+        if 'load_sample_confirmed' not in st.session_state:
+            st.session_state.load_sample_confirmed = False
+        
+        st.warning("⚠️ This will overwrite existing data.")
+        if st.button("Confirm Overwrite", key="confirm_overwrite"):
+            st.session_state.load_sample_confirmed = True
+        
+        if not st.session_state.load_sample_confirmed:
             return
+        
+        # Reset confirmation after use
+        st.session_state.load_sample_confirmed = False
     
     # Load sample data
     st.session_state.config_data = get_sample_config()
