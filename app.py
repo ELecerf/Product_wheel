@@ -1,41 +1,4 @@
-# UTILITY FUNCTIONS
-# ============================================================================
-
-def init_session_state():
-    """Initialize session state variables."""
-    if 'simulation_results' not in st.session_state:
-        st.session_state.simulation_results = None
-    if 'config_data' not in st.session_state:
-        st.session_state.config_data = None
-    if 'products_data' not in st.session_state:
-        st.session_state.products_data = None
-    if 'changeover_data' not in st.session_state:
-        st.session_state.changeover_data = None
-    if 'demand_data' not in st.session_state:
-        st.session_state.demand_data = None
-=======
-# ============================================================================
-# UTILITY FUNCTIONS
-# ============================================================================
-
-def init_session_state():
-    """Initialize session state variables."""
-    if 'simulation_results' not in st.session_state:
-        st.session_state.simulation_results = None
-    if 'config_data' not in st.session_state:
-        st.session_state.config_data = None
-    if 'products_data' not in st.session_state:
-        st.session_state.products_data = None
-    if 'changeover_data' not in st.session_state:
-        st.session_state.changeover_data = None
-    if 'demand_data' not in st.session_state:
-        st.session_state.demand_data = None
-    if 'num_products' not in st.session_state:
-        st.session_state.num_products = 3  # Default number of products
-    if 'num_months' not in st.session_state:
-        st.session_state.num_months = 6  # Default number of months
-    if 'load_sample_confirmed' not in st.session_state:
-        st.session_state.load_sample_confirmed = FalseProduct Wheel Simulator - Main Application
+# Product Wheel Simulator - Main Application
 """
 Streamlit application for Product Wheel simulation.
 This app optimizes production planning using the Product Wheel methodology.
@@ -123,50 +86,13 @@ def init_session_state():
         st.session_state.changeover_data = None
     if 'demand_data' not in st.session_state:
         st.session_state.demand_data = None
-
-
-def load_sample_data():
-    """Load sample data for demonstration purposes."""
-    # Check if there's existing data
-    if any([
-        st.session_state.config_data is not None,
-        st.session_state.products_data is not None,
-        st.session_state.changeover_data is not None
-    ]):
-        # Use a session state variable to track confirmation
-        if 'load_sample_confirmed' not in st.session_state:
-            st.session_state.load_sample_confirmed = False
-        
-        st.warning("⚠️ This will overwrite existing data.")
-        if st.button("Confirm Overwrite", key="confirm_overwrite"):
-            st.session_state.load_sample_confirmed = True
-        
-        if not st.session_state.load_sample_confirmed:
-            return
-        
-        # Reset confirmation after use
+    if 'num_products' not in st.session_state:
+        st.session_state.num_products = 3
+    if 'num_months' not in st.session_state:
+        st.session_state.num_months = 6
+    if 'load_sample_confirmed' not in st.session_state:
         st.session_state.load_sample_confirmed = False
-    
-    # Load sample data
-    st.session_state.config_data = get_sample_config()
-    st.session_state.products_data = get_sample_products()
-    st.session_state.changeover_data = get_sample_changeover_matrix()
-    st.session_state.demand_data = get_sample_demand_history()
-    
-    # Reset results
-    st.session_state.simulation_results = None
-    
-    st.success("Sample data loaded successfully!")
 
-
-# PAGE FUNCTIONS
-# ============================================================================
-=======
-# ============================================================================
-# PAGE FUNCTIONS
-# ========================================================================================================================================================
-# PAGE FUNCTIONS
-# ============================================================================
 
 def create_empty_product_dataframe(num_products: int) -> pd.DataFrame:
     """Create an empty DataFrame for product data with the specified number of rows."""
@@ -213,13 +139,51 @@ def create_empty_changeover_matrix(num_products: int) -> pd.DataFrame:
     return df
 
 
+def load_sample_data():
+    """Load sample data for demonstration purposes."""
+    # Check if there's existing data
+    if any([
+        st.session_state.config_data is not None,
+        st.session_state.products_data is not None,
+        st.session_state.changeover_data is not None
+    ]):
+        # Use a session state variable to track confirmation
+        if 'load_sample_confirmed' not in st.session_state:
+            st.session_state.load_sample_confirmed = False
+        
+        st.warning("This will overwrite existing data.")
+        if st.button("Confirm Overwrite", key="confirm_overwrite"):
+            st.session_state.load_sample_confirmed = True
+        
+        if not st.session_state.load_sample_confirmed:
+            return
+        
+        # Reset confirmation after use
+        st.session_state.load_sample_confirmed = False
+    
+    # Load sample data
+    st.session_state.config_data = get_sample_config()
+    st.session_state.products_data = get_sample_products()
+    st.session_state.changeover_data = get_sample_changeover_matrix()
+    st.session_state.demand_data = get_sample_demand_history()
+    
+    # Reset results
+    st.session_state.simulation_results = None
+    
+    st.success("Sample data loaded successfully!")
+
+
+# ============================================================================
+# PAGE FUNCTIONS
+# ============================================================================
+
 def show_data_input_page():
     """Display the data input page."""
     st.header("1. Data Input")
     st.markdown("Upload or edit your production data.")
     
     # Number of products and months selection
-    with st.expander("🔢 Data Dimensions", expanded=True):
+    with st.expander("Data Dimensions", expanded=True):
         st.markdown("### Set the size of your data tables")
         
         col1, col2 = st.columns(2)
@@ -250,7 +214,7 @@ def show_data_input_page():
             st.success(f"Initialized tables for {st.session_state.num_products} products and {st.session_state.num_months} months!")
     
     # Configuration section
-    with st.expander("📋 Global Configuration", expanded=True):
+    with st.expander("Global Configuration", expanded=True):
         st.markdown("### Configuration Parameters")
         
         col1, col2 = st.columns(2)
@@ -317,7 +281,7 @@ def show_data_input_page():
                 st.success("Configuration updated!")
     
     # Products section
-    with st.expander("📦 Product Data", expanded=True):
+    with st.expander("Product Data", expanded=True):
         st.markdown("### Product Information")
         
         # File upload or manual entry
@@ -366,7 +330,7 @@ def show_data_input_page():
             st.info("No product data loaded. Please upload a file, use sample data, or initialize empty tables.")
     
     # Changeover matrix section
-    with st.expander("🔄 Changeover Matrix", expanded=True):
+    with st.expander("Changeover Matrix", expanded=True):
         st.markdown("### From-To Changeover Times (hours)")
         
         col1, col2 = st.columns([1, 3])
@@ -407,7 +371,7 @@ def show_data_input_page():
             st.info("No changeover matrix loaded. Please upload a file, use sample data, or initialize empty tables.")
     
     # Demand history section
-    with st.expander("📈 Demand History", expanded=False):
+    with st.expander("Demand History", expanded=False):
         st.markdown("### Historical Demand Data")
         
         uploaded_demand = st.file_uploader(
@@ -466,7 +430,7 @@ def show_simulation_page():
     )
     
     if errors:
-        st.error("❌ Input validation errors:")
+        st.error("Input validation errors:")
         for error in errors:
             st.error(f"- {error}")
         return
@@ -558,7 +522,7 @@ def show_simulation_summary(results: SimulationResults):
             format={
                 'Demand_per_Cycle': '{:.2f}',
                 'Freq': '{:.1f}',
-                'Throughput_per_Hour': '{:.2f} €/h',
+                'Throughput_per_Hour': '{:.2f} /h',
                 'Safety_Stock': '{:.1f}'
             }
         )
@@ -616,7 +580,7 @@ def show_product_metrics(results: SimulationResults):
     })
     
     if 'Throughput_per_Hour' in products_df.columns:
-        metrics_df['Throughput (€/h)'] = products_df['Throughput_per_Hour']
+        metrics_df['Throughput (/h)'] = products_df['Throughput_per_Hour']
     
     if 'Processing_Time_per_Unit' in products_df.columns:
         metrics_df['Processing Time/Unit (h)'] = products_df['Processing_Time_per_Unit']
@@ -633,7 +597,7 @@ def show_product_metrics(results: SimulationResults):
         format={
             'Demand per Cycle': '{:.2f}',
             'Frequency': '{:.1f}',
-            'Throughput (€/h)': '{:.2f}',
+            'Throughput (/h)': '{:.2f}',
             'Processing Time/Unit (h)': '{:.3f}',
             'C/O Time (h)': '{:.2f}',
             'Safety Stock': '{:.1f}'
@@ -710,7 +674,7 @@ def show_load_analysis(results: SimulationResults):
     # Highlight cycles with utilization issues
     high_utilization = load_df[load_df['Utilization (%)'] > 100]
     if len(high_utilization) > 0:
-        st.warning(f"⚠️ {len(high_utilization)} cycles exceed available capacity!")
+        st.warning(f"{len(high_utilization)} cycles exceed available capacity!")
         st.dataframe(high_utilization, use_container_width=True)
 
 
@@ -725,16 +689,16 @@ def show_throughput_results(results: SimulationResults):
     products_df = results.products_with_throughput.copy()
     
     # Create throughput comparison
-    if 'Throughput_per_Hour' in products_df.columns and 'RM Profit €/kg' in products_df.columns:
-        throughput_df = products_df[['Product', 'Throughput_per_Hour', 'RM Profit €/kg']].copy()
+    if 'Throughput_per_Hour' in products_df.columns and 'RM Profit /kg' in products_df.columns:
+        throughput_df = products_df[['Product', 'Throughput_per_Hour', 'RM Profit /kg']].copy()
         throughput_df = throughput_df.sort_values('Throughput_per_Hour', ascending=False)
         
         st.dataframe(
             throughput_df,
             use_container_width=True,
             format={
-                'Throughput_per_Hour': '{:.2f} €/h',
-                'RM Profit €/kg': '{:.2f} €/kg'
+                'Throughput_per_Hour': '{:.2f} /h',
+                'RM Profit /kg': '{:.2f} /kg'
             }
         )
     elif 'Throughput_per_Hour' in products_df.columns:
@@ -745,7 +709,7 @@ def show_throughput_results(results: SimulationResults):
             throughput_df,
             use_container_width=True,
             format={
-                'Throughput_per_Hour': '{:.2f} €/h'
+                'Throughput_per_Hour': '{:.2f} /h'
             }
         )
 
@@ -898,7 +862,7 @@ def get_throughput_comparison_chart(results: SimulationResults) -> go.Figure:
         y='Throughput_per_Hour',
         color='Product',
         title="Throughput per Hour by Product",
-        labels={'Throughput_per_Hour': 'Throughput (€/h)', 'Product': 'Product'},
+        labels={'Throughput_per_Hour': 'Throughput (/h)', 'Product': 'Product'},
         text='Throughput_per_Hour'
     )
     
@@ -998,7 +962,7 @@ def show_export_page():
     col1, col2 = st.columns(2)
     
     with col1:
-        if st.button("📥 Download Product Metrics"):
+        if st.button("Download Product Metrics"):
             if results.products_with_throughput is not None:
                 csv = results.products_with_throughput.to_csv(index=False)
                 st.download_button(
@@ -1008,7 +972,7 @@ def show_export_page():
                     mime="text/csv"
                 )
         
-        if st.button("📥 Download Cycle Allocation"):
+        if st.button("Download Cycle Allocation"):
             if results.allocation is not None:
                 csv = results.allocation.to_csv(index=False)
                 st.download_button(
@@ -1019,7 +983,7 @@ def show_export_page():
                 )
     
     with col2:
-        if st.button("📥 Download Load Analysis"):
+        if st.button("Download Load Analysis"):
             if results.load_per_cycle is not None:
                 csv = results.load_per_cycle.to_csv(index=False)
                 st.download_button(
@@ -1029,7 +993,7 @@ def show_export_page():
                     mime="text/csv"
                 )
         
-        if st.button("📥 Download Throughput Analysis"):
+        if st.button("Download Throughput Analysis"):
             if results.products_with_throughput is not None:
                 throughput_df = results.products_with_throughput[['Product', 'Throughput_per_Hour']].copy()
                 csv = throughput_df.to_csv(index=False)
@@ -1051,7 +1015,7 @@ def main():
     init_session_state()
     
     # Header
-    st.markdown('<p class="main-header">🎡 Product Wheel Simulation</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Product Wheel Simulation</p>', unsafe_allow_html=True)
     st.markdown("### Optimize production planning with Product Wheel methodology")
     
     # Sidebar
@@ -1086,6 +1050,7 @@ def main():
         - Better error handling
         - Optimized calculations
         - Type hints and documentation
+        - Interactive data entry
         """)
     
     # Page routing
