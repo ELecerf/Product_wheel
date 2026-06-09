@@ -663,8 +663,7 @@ def show_load_analysis(results):
     st.dataframe(load_df, width='stretch')
     
     # Highlight cycles with utilization issues
-    high_utilization = results['load_per_cycle'].copy()
-    high_utilization = high_utilization[high_utilization['Utilization (%)'] > 100]
+    high_utilization = load_df[load_df['Utilization (%)'] > 100]
     if len(high_utilization) > 0:
         st.warning(f"⚠️ {len(high_utilization)} cycles exceed available capacity!")
         st.dataframe(high_utilization, width='stretch')
