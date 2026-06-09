@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -11,7 +10,7 @@ from datetime import datetime
 # Page configuration
 st.set_page_config(
     page_title="Product Wheel Simulator - Simplified",
-    page_icon="ð¡",
+    page_icon="🎡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -54,7 +53,7 @@ def validate_products(df):
         errors.append("At least one product is required.")
         return errors
     
-    required_cols = ['Product', 'Annual Demand', 'Sequence', 'k', 'Phi']
+    required_cols = ['Product', 'Annual Demand', 'Sequence', 'k', 'Phi', 'C/O Time']
     for col in required_cols:
         if col not in df.columns:
             errors.append(f"Missing required column: {col}")
@@ -101,38 +100,6 @@ def validate_config(df):
     return errors
 
 
-def validate_changeover_matrix(df, products):
-    """Validate changeover matrix."""
-    errors = []
-    if df is None or len(df) == 0:
-        errors.append("Changeover matrix is required.")
-        return errors
-    
-    product_names = products['Product'].tolist()
-    
-    # Check if matrix has correct dimensions
-    if len(df.columns) != len(product_names) + 1:  # +1 for the From\To column
-        errors.append(f"Changeover matrix must have {len(product_names)} product columns.")
-    
-    if len(df.index) != len(product_names):
-        errors.append(f"Changeover matrix must have {len(product_names)} product rows.")
-    
-    # Check diagonal values
-    for idx in df.index:
-        if idx in df.columns:
-            diag_val = df.loc[idx, idx]
-            if pd.notna(diag_val) and diag_val != 0:
-                errors.append(f"Changeover matrix diagonal at ({idx}, {idx}) should be 0.")
-    
-    # Check for negative values
-    numeric_cols = [col for col in df.columns if col != 'From\\To']
-    for col in numeric_cols:
-        if (df[col] < 0).any():
-            errors.append(f"Changeover matrix column {col} contains negative values.")
-    
-    return errors
-
-
 # ============================================================================
 # CALCULATION FUNCTIONS
 # ============================================================================
@@ -143,6 +110,20 @@ def calculate_super_cycle(products_df):
     if not k_values:
         return 0
     return calculate_lcm(k_values)
+
+
+def calculate_super_cycle_months(config_df, super_cycle_days):
+    """Calculate the Super Cycle duration in months."""
+    opened_days_per_week = config_df['Opened Days per week'].iloc[0]
+    opened_week_per_year = config_df['Opened Week per year'].iloc[0]
+    
+    # Calculate days per month
+    days_per_year = opened_week_per_year * opened_days_per_week
+    days_per_month = days_per_year / 12
+    
+    # Super cycle in months
+    super_cycle_months = super_cycle_days / days_per_month
+    return super_cycle_months
 
 
 def calculate_demand_per_cycle(config_df, products_df):
@@ -180,16 +161,20 @@ def calculate_safety_stock(products_df, config_df):
     return products_df
 
 
-def allocate_products_to_cycles(products_df, super_cycle):
+def allocate_products_to_cycles(products_df, super_cycle, num_cycles=None):
     """Allocate products to cycles based on k and Phi."""
     allocation_data = []
+    
+    # If num_cycles is not specified, use super_cycle
+    if num_cycles is None:
+        num_cycles = super_cycle
     
     for _, product in products_df.iterrows():
         k = int(product['k'])
         phi = int(product['Phi'])
         demand_per_cycle = product['Demand_per_Cycle']
         
-        for cycle in range(1, super_cycle + 1):
+        for cycle in range(1, num_cycles + 1):
             if (cycle - phi - 1) % k == 0:
                 allocation_data.append({
                     'Product': product['Product'],
@@ -202,7 +187,7 @@ def allocate_products_to_cycles(products_df, super_cycle):
     return pd.DataFrame(allocation_data)
 
 
-def calculate_load_per_cycle(allocation_df, products_df, changeover_df, config_df):
+def calculate_load_per_cycle(allocation_df, products_df, config_df):
     """Calculate production load and changeover load for each cycle."""
     # Group allocation by cycle
     cycle_groups = allocation_df.groupby('Cycle')
@@ -220,6 +205,7 @@ def calculate_load_per_cycle(allocation_df, products_df, changeover_df, config_d
             production_load += row['Quantity'] * processing_time
         
         # Calculate changeover load based on sequence
+        # Use C/O Time from products table
         changeover_load = 0
         if len(cycle_products) > 1:
             # Sort products by their sequence number
@@ -230,10 +216,9 @@ def calculate_load_per_cycle(allocation_df, products_df, changeover_df, config_d
                 from_prod = sorted_products[i]
                 to_prod = sorted_products[i + 1]
                 
-                if from_prod in changeover_df.index and to_prod in changeover_df.columns:
-                    co_time = changeover_df.loc[from_prod, to_prod]
-                    if pd.notna(co_time):
-                        changeover_load += co_time
+                # Get C/O Time from products table
+                from_co = products_df[products_df['Product'] == from_prod]['C/O Time'].iloc[0]
+                changeover_load += from_co
         
         load_data.append({
             'Cycle': cycle,
@@ -252,7 +237,7 @@ def calculate_throughput(products_df):
     
     processing_time = products_df.get('Processing Time', 1.0)
     co_time = products_df.get('C/O Time', 0.0)
-    throughput_euro = products_df.get('Throughput â¬', 0.0)
+    throughput_euro = products_df.get('Throughput €', 0.0)
     
     products_df['Production_Load'] = products_df['Demand_per_Cycle'] * processing_time
     products_df['Throughput_per_Hour'] = throughput_euro / (products_df['Production_Load'] + co_time)
@@ -260,13 +245,22 @@ def calculate_throughput(products_df):
     return products_df
 
 
-def run_simulation(config_df, products_df, changeover_df):
+def run_simulation(config_df, products_df):
     """Run the complete Product Wheel simulation."""
     results = {}
     
     # Step 1: Calculate Super Cycle
     super_cycle = calculate_super_cycle(products_df)
     results['super_cycle'] = super_cycle
+    
+    # Step 1.5: Calculate Super Cycle in months
+    super_cycle_months = calculate_super_cycle_months(config_df, super_cycle * config_df['Cycle T (days)'].iloc[0])
+    results['super_cycle_months'] = super_cycle_months
+    
+    # Determine number of cycles to display
+    # If super cycle is less than 6 months, display 2 super cycles
+    cycles_to_display = super_cycle * 2 if super_cycle_months < 6 else super_cycle
+    results['cycles_to_display'] = cycles_to_display
     
     # Step 2: Calculate demand per cycle
     products_with_demand = calculate_demand_per_cycle(config_df, products_df)
@@ -280,12 +274,12 @@ def run_simulation(config_df, products_df, changeover_df):
     products_with_ss = calculate_safety_stock(products_with_freq, config_df)
     results['products_with_ss'] = products_with_ss
     
-    # Step 5: Allocate products to cycles
-    allocation_df = allocate_products_to_cycles(products_with_freq, super_cycle)
+    # Step 5: Allocate products to cycles (for display)
+    allocation_df = allocate_products_to_cycles(products_with_freq, cycles_to_display)
     results['allocation'] = allocation_df
     
     # Step 6: Calculate load per cycle
-    load_df = calculate_load_per_cycle(allocation_df, products_with_ss, changeover_df, config_df)
+    load_df = calculate_load_per_cycle(allocation_df, products_with_ss, config_df)
     results['load_per_cycle'] = load_df
     
     # Step 7: Calculate throughput
@@ -333,23 +327,14 @@ def main():
             'Phi': [1, 0, 1],
             'Processing Time': [0.1, 0.15, 0.12],
             'C/O Time': [1.5, 2.0, 1.0],
-            'Throughput â¬': [17500, 12500, 10000]
+            'Throughput €': [17500, 12500, 10000]
         })
-    
-    if 'changeover_df' not in st.session_state:
-        product_names = st.session_state.products_df['Product'].tolist()
-        # Create empty matrix
-        matrix_data = {}
-        matrix_data['From\\To'] = product_names
-        for prod in product_names:
-            matrix_data[prod] = [0] * len(product_names)
-        st.session_state.changeover_df = pd.DataFrame(matrix_data).set_index('From\\To')
     
     if 'simulation_results' not in st.session_state:
         st.session_state.simulation_results = None
     
     # Header
-    st.markdown('<p class="main-header">ð¡ Product Wheel Simulator - Simplified</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">🎡 Product Wheel Simulator - Simplified</p>', unsafe_allow_html=True)
     st.markdown("### Optimize production planning with Product Wheel methodology")
     
     # Sidebar
@@ -357,7 +342,7 @@ def main():
         st.header("Navigation")
         page = st.radio(
             "Select Page",
-            ["Configuration", "Products & Matrix", "Simulation", "Results", "Visualizations"]
+            ["Configuration", "Products", "Simulation", "Results", "Visualizations"]
         )
         
         st.divider()
@@ -378,21 +363,15 @@ def main():
                 'Phi': [1, 0, 1],
                 'Processing Time': [0.1, 0.15, 0.12],
                 'C/O Time': [1.5, 2.0, 1.0],
-                'Throughput â¬': [17500, 12500, 10000]
+                'Throughput €': [17500, 12500, 10000]
             })
-            product_names = st.session_state.products_df['Product'].tolist()
-            matrix_data = {}
-            matrix_data['From\\To'] = product_names
-            for prod in product_names:
-                matrix_data[prod] = [0] * len(product_names)
-            st.session_state.changeover_df = pd.DataFrame(matrix_data).set_index('From\\To')
             st.session_state.simulation_results = None
             st.rerun()
     
     # Page routing
     if page == "Configuration":
         show_config_page()
-    elif page == "Products & Matrix":
+    elif page == "Products":
         show_products_page()
     elif page == "Simulation":
         show_simulation_page()
@@ -425,12 +404,23 @@ def show_config_page():
 
 
 def show_products_page():
-    """Display the products and changeover matrix page."""
-    st.header("2. Products & Changeover Matrix")
+    """Display the products page."""
+    st.header("2. Products")
+    st.markdown("Define your products with their parameters.")
     
     # Products table
     st.markdown("### Product Data")
-    st.markdown("Define your products with their parameters.")
+    st.markdown("""
+    Required columns:
+    - **Product**: Name of the product
+    - **Annual Demand**: Annual demand in units
+    - **Sequence**: Production sequence number (for changeover optimization)
+    - **k**: Multiplicateur de cycle (1-4)
+    - **Phi**: Phase+ value (0 <= Phi < k)
+    - **C/O Time**: Changeover time in hours (used for load calculations)
+    - **Processing Time**: Processing time per unit in hours (optional, defaults to 1.0)
+    - **Throughput €**: Throughput value in euros (optional, defaults to 0)
+    """)
     
     edited_products = st.data_editor(
         st.session_state.products_df,
@@ -441,29 +431,6 @@ def show_products_page():
     
     if edited_products is not None:
         st.session_state.products_df = edited_products
-        # Update changeover matrix when products change
-        product_names = edited_products['Product'].tolist()
-        matrix_data = {}
-        matrix_data['From\\To'] = product_names
-        for prod in product_names:
-            matrix_data[prod] = [0] * len(product_names)
-        st.session_state.changeover_df = pd.DataFrame(matrix_data).set_index('From\\To')
-    
-    st.divider()
-    
-    # Changeover matrix
-    st.markdown("### Changeover Matrix (From-To)")
-    st.markdown("Define changeover times between products (in hours). Diagonal values should be 0.")
-    
-    edited_matrix = st.data_editor(
-        st.session_state.changeover_df,
-        key="matrix_editor",
-        use_container_width=True,
-        num_rows="fixed"
-    )
-    
-    if edited_matrix is not None:
-        st.session_state.changeover_df = edited_matrix
 
 
 def show_simulation_page():
@@ -474,12 +441,11 @@ def show_simulation_page():
     # Validate all inputs
     config_errors = validate_config(st.session_state.config_df)
     product_errors = validate_products(st.session_state.products_df)
-    matrix_errors = validate_changeover_matrix(st.session_state.changeover_df, st.session_state.products_df)
     
-    all_errors = config_errors + product_errors + matrix_errors
+    all_errors = config_errors + product_errors
     
     if all_errors:
-        st.error("â Input validation errors:")
+        st.error("❌ Input validation errors:")
         for error in all_errors:
             st.error(f"- {error}")
         return
@@ -489,8 +455,7 @@ def show_simulation_page():
         with st.spinner("Running Product Wheel simulation..."):
             results = run_simulation(
                 st.session_state.config_df,
-                st.session_state.products_df,
-                st.session_state.changeover_df
+                st.session_state.products_df
             )
             
             st.session_state.simulation_results = results
@@ -503,20 +468,31 @@ def show_simulation_page():
 
 def show_simulation_summary(results):
     """Display a summary of the simulation results."""
-    col1, col2, col3, col4 = st.columns(4)
+    col1, col2, col3, col4, col5 = st.columns(5)
     
     with col1:
         st.metric("Super Cycle", f"{results['super_cycle']} cycles")
     
     with col2:
-        st.metric("Cycles per Year", f"{results['cycles_per_year']:.1f}")
+        st.metric("Super Cycle Duration", f"{results['super_cycle_months']:.1f} months")
     
     with col3:
-        st.metric("Available Time/Cycle", f"{results['available_time_per_cycle']:.1f} hours")
+        st.metric("Cycles per Year", f"{results['cycles_per_year']:.1f}")
     
     with col4:
+        st.metric("Available Time/Cycle", f"{results['available_time_per_cycle']:.1f} hours")
+    
+    with col5:
         num_products = len(results['products_with_demand'])
         st.metric("Products", f"{num_products}")
+    
+    st.divider()
+    
+    # Display super cycle information
+    if results['super_cycle_months'] < 6:
+        st.info(f"✓ Displaying 2 super cycles ({results['super_cycle'] * 2} cycles total) since super cycle duration ({results['super_cycle_months']:.1f} months) is less than 6 months.")
+    else:
+        st.info(f"Displaying 1 super cycle ({results['super_cycle']} cycles) since super cycle duration ({results['super_cycle_months']:.1f} months) is 6 months or more.")
     
     st.divider()
     
@@ -540,7 +516,7 @@ def show_simulation_summary(results):
         format={
             'Demand_per_Cycle': '{:.2f}',
             'Freq': '{:.1f}',
-            'Throughput_per_Hour': '{:.2f} â¬/h',
+            'Throughput_per_Hour': '{:.2f} €/h',
             'Safety_Stock': '{:.1f}'
         }
     )
@@ -588,12 +564,13 @@ def show_product_metrics(results):
         'Annual Demand': products_df['Annual Demand'],
         'k': products_df['k'],
         'Phi': products_df['Phi'],
+        'C/O Time': products_df['C/O Time'],
         'Demand per Cycle': products_df['Demand_per_Cycle'],
         'Frequency': products_df['Freq'],
     })
     
     if 'Throughput_per_Hour' in products_df.columns:
-        metrics_df['Throughput (â¬/h)'] = products_df['Throughput_per_Hour']
+        metrics_df['Throughput (€/h)'] = products_df['Throughput_per_Hour']
     
     if 'Safety_Stock' in products_df.columns:
         metrics_df['Safety Stock'] = products_df['Safety_Stock']
@@ -604,7 +581,7 @@ def show_product_metrics(results):
         format={
             'Demand per Cycle': '{:.2f}',
             'Frequency': '{:.1f}',
-            'Throughput (â¬/h)': '{:.2f}',
+            'Throughput (€/h)': '{:.2f}',
             'Safety Stock': '{:.1f}'
         }
     )
@@ -624,6 +601,10 @@ def show_cycle_allocation(results):
     st.subheader("Product Allocation by Cycle")
     
     allocation_df = results['allocation'].copy()
+    
+    # Display number of cycles being shown
+    num_cycles_shown = results['cycles_to_display']
+    st.info(f"Showing allocation for {num_cycles_shown} cycles")
     
     # Pivot the allocation for better display
     pivot_df = allocation_df.pivot_table(
@@ -671,7 +652,7 @@ def show_load_analysis(results):
     # Highlight cycles with utilization issues
     high_utilization = load_df[load_df['Utilization (%)'] > 100]
     if len(high_utilization) > 0:
-        st.warning(f"â ï¸ {len(high_utilization)} cycles exceed available capacity!")
+        st.warning(f"⚠️ {len(high_utilization)} cycles exceed available capacity!")
         st.dataframe(high_utilization, use_container_width=True)
 
 
@@ -689,7 +670,7 @@ def show_throughput_results(results):
             throughput_df,
             use_container_width=True,
             format={
-                'Throughput_per_Hour': '{:.2f} â¬/h'
+                'Throughput_per_Hour': '{:.2f} €/h'
             }
         )
 
@@ -714,7 +695,6 @@ def show_visualizations_page():
     
     with col2:
         show_throughput_chart = st.checkbox("Throughput Comparison", value=True)
-        show_changeover_heatmap = st.checkbox("Changeover Matrix Heatmap", value=True)
     
     st.divider()
     
@@ -728,10 +708,6 @@ def show_visualizations_page():
     
     if show_throughput_chart and results['products_with_throughput'] is not None:
         plot_throughput_comparison(results)
-        st.divider()
-    
-    if show_changeover_heatmap and st.session_state.changeover_df is not None:
-        plot_changeover_heatmap()
 
 
 @st.cache_data
@@ -760,7 +736,7 @@ def get_allocation_chart(results) -> go.Figure:
         ))
     
     fig.update_layout(
-        title="Product Allocation Across Cycles",
+        title=f"Product Allocation Across {results['cycles_to_display']} Cycles",
         xaxis_title="Cycle",
         yaxis_title="Quantity",
         barmode='stack',
@@ -809,7 +785,7 @@ def get_load_distribution_chart(results) -> go.Figure:
     )
     
     fig.update_layout(
-        title="Load Distribution by Cycle",
+        title=f"Load Distribution Across {results['cycles_to_display']} Cycles",
         xaxis_title="Cycle",
         yaxis_title="Load (hours)",
         barmode='group',
@@ -838,7 +814,7 @@ def get_throughput_comparison_chart(results) -> go.Figure:
         y='Throughput_per_Hour',
         color='Product',
         title="Throughput per Hour by Product",
-        labels={'Throughput_per_Hour': 'Throughput (â¬/h)', 'Product': 'Product'},
+        labels={'Throughput_per_Hour': 'Throughput (€/h)', 'Product': 'Product'},
         text='Throughput_per_Hour'
     )
     
@@ -855,36 +831,9 @@ def plot_throughput_comparison(results):
     st.plotly_chart(fig, use_container_width=True)
 
 
-@st.cache_data
-def get_changeover_heatmap() -> go.Figure:
-    """Generate changeover matrix heatmap."""
-    changeover_df = st.session_state.changeover_df.copy()
-    
-    fig = px.imshow(
-        changeover_df,
-        title="Changeover Times Between Products (hours)",
-        labels=dict(x="To Product", y="From Product", color="Time (h)"),
-        color_continuous_scale='YlOrRd',
-        text_auto='.1f',
-        aspect='auto'
-    )
-    
-    fig.update_layout(height=600)
-    
-    return fig
-
-
-def plot_changeover_heatmap():
-    """Plot changeover matrix as a heatmap."""
-    st.subheader("Changeover Matrix Heatmap")
-    fig = get_changeover_heatmap()
-    st.plotly_chart(fig, use_container_width=True)
-
-
 # ============================================================================
 # ENTRY POINT
 # ============================================================================
 
 if __name__ == "__main__":
     main()
-
