@@ -16,10 +16,14 @@ def get_sample_config() -> pd.DataFrame:
     Returns:
         DataFrame with sample configuration data.
     """
+    # Create DataFrame with explicit column types to avoid float64 conversion
     config_data = pd.DataFrame({
-        'Parameter': REQUIRED_CONFIG_COLUMNS,
-        'Value': [168, 42, 52, 7, 0.2]
-    }).set_index('Parameter').T
+        'Available Time per week (h)': [168.0],
+        'Cycle T (days)': [42],
+        'Opened Week per year': [52],
+        'Opened Days per week': [7],
+        'Planned Loss (%)': [0.2]
+    })
     return config_data
 
 
