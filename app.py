@@ -161,6 +161,15 @@ def calculate_safety_stock(products_df, config_df):
     return products_df
 
 
+def format_dataframe_for_display(df, format_dict=None):
+    """Format dataframe columns for display."""
+    if format_dict:
+        for col, fmt in format_dict.items():
+            if col in df.columns:
+                df[col] = df[col].apply(lambda x: fmt.format(x) if pd.notna(x) else x)
+    return df
+
+
 def allocate_products_to_cycles(products_df, super_cycle, num_cycles=None):
     """Allocate products to cycles based on k and Phi."""
     allocation_data = []
@@ -254,7 +263,8 @@ def run_simulation(config_df, products_df):
     results['super_cycle'] = super_cycle
     
     # Step 1.5: Calculate Super Cycle in months
-    super_cycle_months = calculate_super_cycle_months(config_df, super_cycle * config_df['Cycle T (days)'].iloc[0])
+    cycle_t_days = config_df['Cycle T (days)'].iloc[0]
+    super_cycle_months = calculate_super_cycle_months(config_df, super_cycle * cycle_t_days)
     results['super_cycle_months'] = super_cycle_months
     
     # Determine number of cycles to display
@@ -391,7 +401,7 @@ def show_config_page():
     edited_config = st.data_editor(
         st.session_state.config_df,
         key="config_editor",
-        use_container_width=True,
+        width='stretch',
         num_rows="fixed"
     )
     
@@ -400,7 +410,7 @@ def show_config_page():
     
     # Display current values
     st.markdown("**Current Configuration:**")
-    st.dataframe(st.session_state.config_df, use_container_width=True)
+    st.dataframe(st.session_state.config_df, width='stretch')
 
 
 def show_products_page():
@@ -425,7 +435,7 @@ def show_products_page():
     edited_products = st.data_editor(
         st.session_state.products_df,
         key="products_editor",
-        use_container_width=True,
+        width='stretch',
         num_rows="dynamic"
     )
     
@@ -510,16 +520,18 @@ def show_simulation_summary(results):
     if 'Safety_Stock' in products_df.columns:
         display_cols.append('Safety_Stock')
     
-    st.dataframe(
-        products_df[display_cols],
-        use_container_width=True,
-        format={
-            'Demand_per_Cycle': '{:.2f}',
-            'Freq': '{:.1f}',
-            'Throughput_per_Hour': '{:.2f} €/h',
-            'Safety_Stock': '{:.1f}'
-        }
-    )
+    # Format the dataframe for display
+    display_df = products_df[display_cols].copy()
+    if 'Demand_per_Cycle' in display_df.columns:
+        display_df['Demand_per_Cycle'] = display_df['Demand_per_Cycle'].apply(lambda x: f"{x:.2f}")
+    if 'Freq' in display_df.columns:
+        display_df['Freq'] = display_df['Freq'].apply(lambda x: f"{x:.1f}")
+    if 'Throughput_per_Hour' in display_df.columns:
+        display_df['Throughput_per_Hour'] = display_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} €/h")
+    if 'Safety_Stock' in display_df.columns:
+        display_df['Safety_Stock'] = display_df['Safety_Stock'].apply(lambda x: f"{x:.1f}")
+    
+    st.dataframe(display_df, width='stretch')
 
 
 def show_results_page():
@@ -575,16 +587,17 @@ def show_product_metrics(results):
     if 'Safety_Stock' in products_df.columns:
         metrics_df['Safety Stock'] = products_df['Safety_Stock']
     
-    st.dataframe(
-        metrics_df,
-        use_container_width=True,
-        format={
-            'Demand per Cycle': '{:.2f}',
-            'Frequency': '{:.1f}',
-            'Throughput (€/h)': '{:.2f}',
-            'Safety Stock': '{:.1f}'
-        }
-    )
+    # Format the dataframe for display
+    if 'Demand per Cycle' in metrics_df.columns:
+        metrics_df['Demand per Cycle'] = metrics_df['Demand per Cycle'].apply(lambda x: f"{x:.2f}")
+    if 'Frequency' in metrics_df.columns:
+        metrics_df['Frequency'] = metrics_df['Frequency'].apply(lambda x: f"{x:.1f}")
+    if 'Throughput (€/h)' in metrics_df.columns:
+        metrics_df['Throughput (€/h)'] = metrics_df['Throughput (€/h)'].apply(lambda x: f"{x:.2f}")
+    if 'Safety Stock' in metrics_df.columns:
+        metrics_df['Safety Stock'] = metrics_df['Safety Stock'].apply(lambda x: f"{x:.1f}")
+    
+    st.dataframe(metrics_df, width='stretch')
     
     # Download button
     csv = metrics_df.to_csv(index=False)
@@ -615,15 +628,18 @@ def show_cycle_allocation(results):
         fill_value=0
     )
     
+    # Format pivot dataframe
+    pivot_df = pivot_df.applymap(lambda x: f"{x:.2f}" if pd.notna(x) else "")
+    
     st.markdown("**Allocation Matrix (Quantity per Cycle)**")
-    st.dataframe(pivot_df, use_container_width=True)
+    st.dataframe(pivot_df, width='stretch')
     
     st.markdown("**Detailed Allocation**")
-    st.dataframe(
-        allocation_df,
-        use_container_width=True,
-        format={'Quantity': '{:.2f}'}
-    )
+    # Format detailed allocation
+    alloc_display = allocation_df.copy()
+    if 'Quantity' in alloc_display.columns:
+        alloc_display['Quantity'] = alloc_display['Quantity'].apply(lambda x: f"{x:.2f}")
+    st.dataframe(alloc_display, width='stretch')
 
 
 def show_load_analysis(results):
@@ -637,23 +653,21 @@ def show_load_analysis(results):
     load_df['Utilization (%)'] = (load_df['Total_Load'] / available_time) * 100
     load_df['Available Capacity'] = available_time
     
-    st.dataframe(
-        load_df,
-        use_container_width=True,
-        format={
-            'Production_Load': '{:.2f} h',
-            'Changeover_Load': '{:.2f} h',
-            'Total_Load': '{:.2f} h',
-            'Utilization (%)': '{:.1f}%',
-            'Available Capacity': '{:.2f} h'
-        }
-    )
+    # Format the dataframe for display
+    load_df['Production_Load'] = load_df['Production_Load'].apply(lambda x: f"{x:.2f} h")
+    load_df['Changeover_Load'] = load_df['Changeover_Load'].apply(lambda x: f"{x:.2f} h")
+    load_df['Total_Load'] = load_df['Total_Load'].apply(lambda x: f"{x:.2f} h")
+    load_df['Utilization (%)'] = load_df['Utilization (%)'].apply(lambda x: f"{x:.1f}%")
+    load_df['Available Capacity'] = load_df['Available Capacity'].apply(lambda x: f"{x:.2f} h")
+    
+    st.dataframe(load_df, width='stretch')
     
     # Highlight cycles with utilization issues
-    high_utilization = load_df[load_df['Utilization (%)'] > 100]
+    high_utilization = results['load_per_cycle'].copy()
+    high_utilization = high_utilization[high_utilization['Utilization (%)'] > 100]
     if len(high_utilization) > 0:
         st.warning(f"⚠️ {len(high_utilization)} cycles exceed available capacity!")
-        st.dataframe(high_utilization, use_container_width=True)
+        st.dataframe(high_utilization, width='stretch')
 
 
 def show_throughput_results(results):
@@ -666,13 +680,10 @@ def show_throughput_results(results):
         throughput_df = products_df[['Product', 'Throughput_per_Hour']].copy()
         throughput_df = throughput_df.sort_values('Throughput_per_Hour', ascending=False)
         
-        st.dataframe(
-            throughput_df,
-            use_container_width=True,
-            format={
-                'Throughput_per_Hour': '{:.2f} €/h'
-            }
-        )
+        # Format the dataframe for display
+        throughput_df['Throughput_per_Hour'] = throughput_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} €/h")
+        
+        st.dataframe(throughput_df, width='stretch')
 
 
 def show_visualizations_page():
@@ -751,7 +762,7 @@ def plot_allocation_chart(results):
     """Plot product allocation across cycles."""
     st.subheader("Product Allocation by Cycle")
     fig = get_allocation_chart(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 @st.cache_data
@@ -800,7 +811,7 @@ def plot_load_distribution(results):
     """Plot load distribution across cycles."""
     st.subheader("Load Distribution by Cycle")
     fig = get_load_distribution_chart(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 @st.cache_data
@@ -828,7 +839,7 @@ def plot_throughput_comparison(results):
     """Plot throughput comparison across products."""
     st.subheader("Throughput Comparison")
     fig = get_throughput_comparison_chart(results)
-    st.plotly_chart(fig, use_container_width=True)
+    st.plotly_chart(fig, width='stretch')
 
 
 # ============================================================================
