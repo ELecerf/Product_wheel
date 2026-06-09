@@ -10,7 +10,7 @@ from datetime import datetime
 # Page configuration
 st.set_page_config(
     page_title="Product Wheel Simulator - Simplified",
-    page_icon="ð¡",
+    page_icon="Ã°ÂÂÂ¡",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -246,7 +246,7 @@ def calculate_throughput(products_df):
     
     processing_time = products_df.get('Processing Time', 1.0)
     co_time = products_df.get('C/O Time', 0.0)
-    throughput_euro = products_df.get('Throughput â¬', 0.0)
+    throughput_euro = products_df.get('Throughput Ã¢ÂÂ¬', 0.0)
     
     products_df['Production_Load'] = products_df['Demand_per_Cycle'] * processing_time
     products_df['Throughput_per_Hour'] = throughput_euro / (products_df['Production_Load'] + co_time)
@@ -337,14 +337,14 @@ def main():
             'Phi': [1, 0, 1],
             'Processing Time': [0.1, 0.15, 0.12],
             'C/O Time': [1.5, 2.0, 1.0],
-            'Throughput â¬': [17500, 12500, 10000]
+            'Throughput Ã¢ÂÂ¬': [17500, 12500, 10000]
         })
     
     if 'simulation_results' not in st.session_state:
         st.session_state.simulation_results = None
     
     # Header
-    st.markdown('<p class="main-header">ð¡ Product Wheel Simulator - Simplified</p>', unsafe_allow_html=True)
+    st.markdown('<p class="main-header">Ã°ÂÂÂ¡ Product Wheel Simulator - Simplified</p>', unsafe_allow_html=True)
     st.markdown("### Optimize production planning with Product Wheel methodology")
     
     # Sidebar
@@ -373,7 +373,7 @@ def main():
                 'Phi': [1, 0, 1],
                 'Processing Time': [0.1, 0.15, 0.12],
                 'C/O Time': [1.5, 2.0, 1.0],
-                'Throughput â¬': [17500, 12500, 10000]
+                'Throughput Ã¢ÂÂ¬': [17500, 12500, 10000]
             })
             st.session_state.simulation_results = None
             st.rerun()
@@ -429,7 +429,7 @@ def show_products_page():
     - **Phi**: Phase+ value (0 <= Phi < k)
     - **C/O Time**: Changeover time in hours (used for load calculations)
     - **Processing Time**: Processing time per unit in hours (optional, defaults to 1.0)
-    - **Throughput â¬**: Throughput value in euros (optional, defaults to 0)
+    - **Throughput Ã¢ÂÂ¬**: Throughput value in euros (optional, defaults to 0)
     """)
     
     edited_products = st.data_editor(
@@ -455,7 +455,7 @@ def show_simulation_page():
     all_errors = config_errors + product_errors
     
     if all_errors:
-        st.error("â Input validation errors:")
+        st.error("Ã¢ÂÂ Input validation errors:")
         for error in all_errors:
             st.error(f"- {error}")
         return
@@ -500,7 +500,7 @@ def show_simulation_summary(results):
     
     # Display super cycle information
     if results['super_cycle_months'] < 6:
-        st.info(f"â Displaying 2 super cycles ({results['super_cycle'] * 2} cycles total) since super cycle duration ({results['super_cycle_months']:.1f} months) is less than 6 months.")
+        st.info(f"Ã¢ÂÂ Displaying 2 super cycles ({results['super_cycle'] * 2} cycles total) since super cycle duration ({results['super_cycle_months']:.1f} months) is less than 6 months.")
     else:
         st.info(f"Displaying 1 super cycle ({results['super_cycle']} cycles) since super cycle duration ({results['super_cycle_months']:.1f} months) is 6 months or more.")
     
@@ -527,7 +527,7 @@ def show_simulation_summary(results):
     if 'Freq' in display_df.columns:
         display_df['Freq'] = display_df['Freq'].apply(lambda x: f"{x:.1f}")
     if 'Throughput_per_Hour' in display_df.columns:
-        display_df['Throughput_per_Hour'] = display_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} â¬/h")
+        display_df['Throughput_per_Hour'] = display_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} Ã¢ÂÂ¬/h")
     if 'Safety_Stock' in display_df.columns:
         display_df['Safety_Stock'] = display_df['Safety_Stock'].apply(lambda x: f"{x:.1f}")
     
@@ -582,7 +582,7 @@ def show_product_metrics(results):
     })
     
     if 'Throughput_per_Hour' in products_df.columns:
-        metrics_df['Throughput (â¬/h)'] = products_df['Throughput_per_Hour']
+        metrics_df['Throughput (Ã¢ÂÂ¬/h)'] = products_df['Throughput_per_Hour']
     
     if 'Safety_Stock' in products_df.columns:
         metrics_df['Safety Stock'] = products_df['Safety_Stock']
@@ -592,8 +592,8 @@ def show_product_metrics(results):
         metrics_df['Demand per Cycle'] = metrics_df['Demand per Cycle'].apply(lambda x: f"{x:.2f}")
     if 'Frequency' in metrics_df.columns:
         metrics_df['Frequency'] = metrics_df['Frequency'].apply(lambda x: f"{x:.1f}")
-    if 'Throughput (â¬/h)' in metrics_df.columns:
-        metrics_df['Throughput (â¬/h)'] = metrics_df['Throughput (â¬/h)'].apply(lambda x: f"{x:.2f}")
+    if 'Throughput (Ã¢ÂÂ¬/h)' in metrics_df.columns:
+        metrics_df['Throughput (Ã¢ÂÂ¬/h)'] = metrics_df['Throughput (Ã¢ÂÂ¬/h)'].apply(lambda x: f"{x:.2f}")
     if 'Safety Stock' in metrics_df.columns:
         metrics_df['Safety Stock'] = metrics_df['Safety Stock'].apply(lambda x: f"{x:.1f}")
     
@@ -648,12 +648,12 @@ def show_load_analysis(results):
     
     load_df = results['load_per_cycle'].copy()
     available_time = results['available_time_per_cycle']
-    # Store numeric utilization for calculations
-    utilization_numeric = load_df["Utilization (%)"].copy()
     
     # Add capacity utilization
     load_df['Utilization (%)'] = (load_df['Total_Load'] / available_time) * 100
     load_df['Available Capacity'] = available_time
+    # Store numeric utilization for calculations
+    utilization_numeric = load_df["Utilization (%)"].copy()
     
     # Format the dataframe for display
     load_df['Production_Load'] = load_df['Production_Load'].apply(lambda x: f"{x:.2f} h")
@@ -667,7 +667,7 @@ def show_load_analysis(results):
     # Highlight cycles with utilization issues - use numeric value
     high_utilization = load_df[utilization_numeric > 100]
     if len(high_utilization) > 0:
-        st.warning(f"â ï¸ {len(high_utilization)} cycles exceed available capacity!")
+        st.warning(f"Ã¢ÂÂ Ã¯Â¸Â {len(high_utilization)} cycles exceed available capacity!")
         st.dataframe(high_utilization, width='stretch')
 
 
@@ -682,7 +682,7 @@ def show_throughput_results(results):
         throughput_df = throughput_df.sort_values('Throughput_per_Hour', ascending=False)
         
         # Format the dataframe for display
-        throughput_df['Throughput_per_Hour'] = throughput_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} â¬/h")
+        throughput_df['Throughput_per_Hour'] = throughput_df['Throughput_per_Hour'].apply(lambda x: f"{x:.2f} Ã¢ÂÂ¬/h")
         
         st.dataframe(throughput_df, width='stretch')
 
@@ -826,7 +826,7 @@ def get_throughput_comparison_chart(results) -> go.Figure:
         y='Throughput_per_Hour',
         color='Product',
         title="Throughput per Hour by Product",
-        labels={'Throughput_per_Hour': 'Throughput (â¬/h)', 'Product': 'Product'},
+        labels={'Throughput_per_Hour': 'Throughput (Ã¢ÂÂ¬/h)', 'Product': 'Product'},
         text='Throughput_per_Hour'
     )
     
@@ -849,4 +849,5 @@ def plot_throughput_comparison(results):
 
 if __name__ == "__main__":
     main()
+
 
